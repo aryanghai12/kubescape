@@ -21,7 +21,7 @@ deny contains msga if {
 	rule := role.rules[p]
 
 	# a rule restricted to named pods cannot be pointed at an arbitrary privileged pod
-	not rule.resourceNames
+	unrestricted_rule(rule)
 
 	subject := rolebinding.subjects[k]
 	is_same_subjects(subjectVector, subject)
@@ -56,6 +56,15 @@ deny contains msga if {
 			"externalObjects": subjectVector,
 		},
 	}
+}
+
+# Kubernetes draws no distinction between an absent resourceNames and an
+# explicitly empty one: ResourceNameMatches returns true as soon as the list is
+# empty, so both mean the rule is not narrowed to named objects. Testing
+# definedness alone (not rule.resourceNames) would treat resourceNames: [] as
+# scoped and skip a subject that in fact holds unrestricted access.
+unrestricted_rule(rule) if {
+	count(object.get(rule, "resourceNames", [])) == 0
 }
 
 # a ClusterRoleBinding grants the role in every namespace, privileged ones included
